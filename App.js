@@ -1,11 +1,3 @@
-if (__DEV__) {
-  const _log = console.log;
-  console.log = (...args) => {
-    if (typeof args[0] === "string" && args[0].includes("Running application")) return;
-    _log(...args);
-  };
-}
-
 import { useEffect } from "react";
 import { ActivityIndicator, Platform, StyleSheet, View } from "react-native";
 import { Provider, useDispatch, useSelector } from "react-redux";
@@ -14,6 +6,14 @@ import { connectSocket, disconnectSocket } from "./src/services/socket";
 import { injectStore } from "./src/services/api";
 import { restoreToken } from "./src/store/slices/authSlice";
 import { store } from "./src/store/store";
+
+if (__DEV__) {
+  const _log = console.log;
+  console.log = (...args) => {
+    if (typeof args[0] === "string" && args[0].includes("Running application")) return;
+    _log(...args);
+  };
+}
 
 injectStore(store);
 

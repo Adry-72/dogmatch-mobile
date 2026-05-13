@@ -7,6 +7,8 @@ import { useSelector } from "react-redux";
 
 import { HapticTab } from "../../components/haptic-tab";
 import AdminDashboardScreen from "../screens/AdminDashboardScreen";
+import AdminStatsScreen from "../screens/AdminStatsScreen";
+import AdminDogDetailScreen from "../screens/AdminDogDetailScreen";
 import AdminDogsScreen from "../screens/AdminDogsScreen";
 import AdminReportsScreen from "../screens/AdminReportsScreen";
 import AdminUserDetailScreen from "../screens/AdminUserDetailScreen";
@@ -69,9 +71,11 @@ function AdminNavigator() {
       }}
     >
       <AdminStack.Screen name="AdminDashboard" component={AdminDashboardScreen} options={{ headerShown: false }} />
+      <AdminStack.Screen name="AdminStats" component={AdminStatsScreen} options={{ title: 'Statistiche & Monitoring' }} />
       <AdminStack.Screen name="AdminUsers" component={AdminUsersScreen} options={{ title: 'Utenti' }} />
       <AdminStack.Screen name="AdminUserDetail" component={AdminUserDetailScreen} options={{ title: 'Dettaglio Utente' }} />
       <AdminStack.Screen name="AdminDogs" component={AdminDogsScreen} options={{ title: 'Cani' }} />
+      <AdminStack.Screen name="AdminDogDetail" component={AdminDogDetailScreen} options={{ title: 'Dettaglio Cane' }} />
       <AdminStack.Screen name="AdminReports" component={AdminReportsScreen} options={{ title: 'Segnalazioni' }} />
     </AdminStack.Navigator>
   );

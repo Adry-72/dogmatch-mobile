@@ -1,10 +1,27 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import {
+  Alert,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { Bubble, GiftedChat, Send } from 'react-native-gifted-chat';
 import { useSelector } from 'react-redux';
 import api from '../services/api';
 import socket from '../services/socket';
+
+const MOTIVI = [
+  { key: 'comportamento_inappropriato', label: 'Comportamento inappropriato' },
+  { key: 'spam',                        label: 'Spam o pubblicità' },
+  { key: 'profilo_falso',               label: 'Profilo falso' },
+  { key: 'maltrattamento_animali',      label: 'Maltrattamento animali' },
+  { key: 'altro',                       label: 'Altro' },
+];
 
 const MessagesScreen = ({ route, navigation }) => {
   const { interazioneId, destinatarioNome } = route.params || {};
@@ -13,6 +30,10 @@ const MessagesScreen = ({ route, navigation }) => {
 
   const [messages, setMessages] = useState([]);
   const [isTyping, setIsTyping] = useState(false);
+  const [showSegnalaModal, setShowSegnalaModal] = useState(false);
+  const [motivoSelezionato, setMotivoSelezionato] = useState(null);
+  const [descrizione, setDescrizione] = useState('');
+  const [segnalaLoading, setSegnalaLoading] = useState(false);
 
   const typingTimeoutRef = useRef(null);
 
@@ -68,6 +89,34 @@ const MessagesScreen = ({ route, navigation }) => {
     }
   };
 
+  const openSegnalaModal = () => {
+    setMotivoSelezionato(null);
+    setDescrizione('');
+    setShowSegnalaModal(true);
+  };
+
+  const handleInviaSegnalazione = async () => {
+    if (!motivoSelezionato) {
+      Alert.alert('Seleziona un motivo', 'Devi scegliere un motivo per la segnalazione.');
+      return;
+    }
+    setSegnalaLoading(true);
+    try {
+      await api.post('/segnalazioni', {
+        interazioneId,
+        motivo: motivoSelezionato,
+        descrizione: descrizione.trim() || undefined,
+      });
+      setShowSegnalaModal(false);
+      Alert.alert('Segnalazione inviata', 'La tua segnalazione è stata ricevuta e verrà esaminata dal team.');
+    } catch (err) {
+      const msg = err?.response?.data?.errore || 'Impossibile inviare la segnalazione.';
+      Alert.alert('Errore', msg);
+    } finally {
+      setSegnalaLoading(false);
+    }
+  };
+
   useEffect(() => {
     const fetchCronologia = async () => {
       try {
@@ -78,7 +127,16 @@ const MessagesScreen = ({ route, navigation }) => {
       } catch {}
     };
     fetchCronologia();
-    if (destinatarioNome) navigation.setOptions({ title: destinatarioNome });
+    if (destinatarioNome) {
+      navigation.setOptions({
+        title: destinatarioNome,
+        headerRight: () => (
+          <TouchableOpacity onPress={openSegnalaModal} style={{ marginRight: 16 }}>
+            <MaterialCommunityIcons name="flag-outline" size={24} color="#FF3B30" />
+          </TouchableOpacity>
+        ),
+      });
+    }
   }, [interazioneId]);
 
   const onSend = useCallback(async (newMessages = []) => {
@@ -123,6 +181,70 @@ const MessagesScreen = ({ route, navigation }) => {
 
   return (
     <View style={styles.container}>
+      {/* Modal segnalazione utente */}
+      <Modal
+        visible={showSegnalaModal}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setShowSegnalaModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalBox}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Segnala utente</Text>
+              <TouchableOpacity onPress={() => setShowSegnalaModal(false)}>
+                <MaterialCommunityIcons name="close" size={24} color="#333" />
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.modalSubtitle}>
+              Segnala {destinatarioNome} al team di moderazione. Verrai contattato se necessario.
+            </Text>
+
+            <Text style={styles.modalLabel}>Motivo *</Text>
+            <ScrollView style={{ maxHeight: 200 }} showsVerticalScrollIndicator={false}>
+              {MOTIVI.map((m) => (
+                <TouchableOpacity
+                  key={m.key}
+                  style={[styles.motivoOption, motivoSelezionato === m.key && styles.motivoOptionActive]}
+                  onPress={() => setMotivoSelezionato(m.key)}
+                >
+                  <MaterialCommunityIcons
+                    name={motivoSelezionato === m.key ? 'radiobox-marked' : 'radiobox-blank'}
+                    size={20}
+                    color={motivoSelezionato === m.key ? '#0047AB' : '#AAA'}
+                  />
+                  <Text style={[styles.motivoLabel, motivoSelezionato === m.key && { color: '#0047AB', fontWeight: '700' }]}>
+                    {m.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            <Text style={[styles.modalLabel, { marginTop: 14 }]}>Dettagli (opzionale)</Text>
+            <TextInput
+              style={styles.descrizioneInput}
+              placeholder="Descrivi brevemente il problema..."
+              placeholderTextColor="#BBB"
+              value={descrizione}
+              onChangeText={setDescrizione}
+              multiline
+              maxLength={500}
+            />
+
+            <TouchableOpacity
+              style={[styles.inviaBtn, (!motivoSelezionato || segnalaLoading) && { opacity: 0.5 }]}
+              onPress={handleInviaSegnalazione}
+              disabled={!motivoSelezionato || segnalaLoading}
+            >
+              <MaterialCommunityIcons name="flag" size={18} color="#FFF" />
+              <Text style={styles.inviaBtnText}>
+                {segnalaLoading ? 'Invio...' : 'Invia segnalazione'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       <GiftedChat
         messages={messages}
         onSend={onSend}
@@ -163,6 +285,63 @@ const styles = StyleSheet.create({
     color: '#0047AB',
     fontStyle: 'italic',
   },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'flex-end',
+  },
+  modalBox: {
+    backgroundColor: '#FFF7F2',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    paddingBottom: 40,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  modalTitle: { fontSize: 18, fontWeight: '900', color: '#1A1A1A' },
+  modalSubtitle: { fontSize: 13, color: '#888', marginBottom: 16, lineHeight: 18 },
+  modalLabel: { fontSize: 13, fontWeight: '700', color: '#555', marginBottom: 8 },
+  motivoOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    marginBottom: 4,
+    backgroundColor: '#FFF',
+    gap: 10,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+  },
+  motivoOptionActive: { borderColor: '#0047AB', backgroundColor: '#EEF3FF' },
+  motivoLabel: { fontSize: 14, color: '#333' },
+  descrizioneInput: {
+    backgroundColor: '#FFF',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    padding: 12,
+    fontSize: 14,
+    color: '#333',
+    minHeight: 80,
+    textAlignVertical: 'top',
+  },
+  inviaBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FF3B30',
+    borderRadius: 14,
+    paddingVertical: 14,
+    marginTop: 16,
+    gap: 8,
+  },
+  inviaBtnText: { color: '#FFF', fontWeight: '800', fontSize: 16 },
 });
 
 export default MessagesScreen;

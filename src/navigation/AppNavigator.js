@@ -6,6 +6,11 @@ import { ActivityIndicator, Image, Platform, View } from 'react-native';
 import { useSelector } from "react-redux";
 
 import { HapticTab } from "../../components/haptic-tab";
+import AdminDashboardScreen from "../screens/AdminDashboardScreen";
+import AdminDogsScreen from "../screens/AdminDogsScreen";
+import AdminReportsScreen from "../screens/AdminReportsScreen";
+import AdminUserDetailScreen from "../screens/AdminUserDetailScreen";
+import AdminUsersScreen from "../screens/AdminUsersScreen";
 import EditProfileScreen from "../screens/EditProfileScreen";
 import ForgotPasswordScreen from "../screens/ForgotPasswordScreen";
 import HomeScreen from "../screens/HomeScreen";
@@ -22,6 +27,7 @@ const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 const ProfileStack = createNativeStackNavigator();
 const ChatStack = createNativeStackNavigator();
+const AdminStack = createNativeStackNavigator();
 const AppStack = createNativeStackNavigator();
 
 function AuthStack() {
@@ -52,7 +58,29 @@ function ProfileNavigator() {
   );
 }
 
+function AdminNavigator() {
+  return (
+    <AdminStack.Navigator
+      screenOptions={{
+        headerShadowVisible: false,
+        headerStyle: { backgroundColor: '#FFF7F2' },
+        headerTintColor: '#0047AB',
+        headerTitleStyle: { fontWeight: '900' },
+      }}
+    >
+      <AdminStack.Screen name="AdminDashboard" component={AdminDashboardScreen} options={{ headerShown: false }} />
+      <AdminStack.Screen name="AdminUsers" component={AdminUsersScreen} options={{ title: 'Utenti' }} />
+      <AdminStack.Screen name="AdminUserDetail" component={AdminUserDetailScreen} options={{ title: 'Dettaglio Utente' }} />
+      <AdminStack.Screen name="AdminDogs" component={AdminDogsScreen} options={{ title: 'Cani' }} />
+      <AdminStack.Screen name="AdminReports" component={AdminReportsScreen} options={{ title: 'Segnalazioni' }} />
+    </AdminStack.Navigator>
+  );
+}
+
 function MainTabs() {
+  const user = useSelector((state) => state.auth.user);
+  const isAdmin = user?.ruolo === 'admin';
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -88,6 +116,7 @@ function MainTabs() {
           if (route.name === "Home") iconName = "dog";
           else if (route.name === "Messaggi") iconName = "message-text";
           else if (route.name === "Profilo") iconName = "account";
+          else if (route.name === "Admin") iconName = "shield-account";
           return <MaterialCommunityIcons name={iconName} size={size + 4} color={color} />;
         },
       })}
@@ -99,6 +128,16 @@ function MainTabs() {
         options={{ title: "Le mie Chat" }}
       />
       <Tab.Screen name="Profilo" component={ProfileNavigator} options={{ title: "Mio Profilo" }} />
+      {isAdmin && (
+        <Tab.Screen
+          name="Admin"
+          component={AdminNavigator}
+          options={{
+            title: "Admin",
+            tabBarActiveTintColor: "#E8405A",
+          }}
+        />
+      )}
     </Tab.Navigator>
   );
 }

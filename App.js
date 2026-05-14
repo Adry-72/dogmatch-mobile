@@ -1,8 +1,10 @@
 import { useEffect } from "react";
 import { ActivityIndicator, Platform, StyleSheet, View } from "react-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { Provider, useDispatch, useSelector } from "react-redux";
+import { aggiungiNotifica } from "./src/store/slices/notificheSlice";
 import AppNavigator from "./src/navigation/AppNavigator";
-import { connectSocket, disconnectSocket } from "./src/services/socket";
+import socket, { connectSocket, disconnectSocket } from "./src/services/socket";
 import { injectStore } from "./src/services/api";
 import { restoreToken } from "./src/store/slices/authSlice";
 import { store } from "./src/store/store";
@@ -34,6 +36,14 @@ const AppContent = () => {
     return () => disconnectSocket();
   }, [token]);
 
+  useEffect(() => {
+    const handleNotifica = (data) => {
+      dispatch(aggiungiNotifica(data));
+    };
+    socket.on('nuova_notifica', handleNotifica);
+    return () => { socket.off('nuova_notifica', handleNotifica); };
+  }, [dispatch]);
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -47,13 +57,15 @@ const AppContent = () => {
 
 export default function App() {
   return (
-    <Provider store={store}>
-      <View style={styles.mainWrapper}>
-        <View style={styles.appResponsiveContainer}>
-          <AppContent />
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <Provider store={store}>
+        <View style={styles.mainWrapper}>
+          <View style={styles.appResponsiveContainer}>
+            <AppContent />
+          </View>
         </View>
-      </View>
-    </Provider>
+      </Provider>
+    </GestureHandlerRootView>
   );
 }
 

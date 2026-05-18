@@ -122,6 +122,11 @@ export default function AdminDashboardScreen({ navigation }) {
           <Text style={styles.navButtonText}>Segnalazioni Utenti</Text>
           <MaterialCommunityIcons name="chevron-right" size={22} color="#E8405A" />
         </TouchableOpacity>
+        <TouchableOpacity style={styles.navButton} onPress={() => navigation.navigate('AdminStats')}>
+          <MaterialCommunityIcons name="chart-bar" size={22} color="#8B5CF6" />
+          <Text style={styles.navButtonText}>Statistiche & Monitoring</Text>
+          <MaterialCommunityIcons name="chevron-right" size={22} color="#8B5CF6" />
+        </TouchableOpacity>
       </View>
 
       <Text style={styles.sectionTitle}>Ultimi Match</Text>

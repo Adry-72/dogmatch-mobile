@@ -5,6 +5,7 @@ import {
   Alert,
   FlatList,
   RefreshControl,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -27,7 +28,45 @@ const ROLE_COLOR = {
   admin: '#0047AB',
 };
 
+const STATUS_FILTERS = [
+  { key: 'tutti', label: 'Tutti' },
+  { key: 'verificati', label: 'Verificati' },
+  { key: 'bloccati', label: 'Bloccati' },
+];
+
+const ROLE_FILTERS = [
+  { key: 'tutti', label: 'Tutti' },
+  { key: 'privato', label: 'Privato' },
+  { key: 'allevatore', label: 'Allevatore' },
+  { key: 'appassionato', label: 'Appassionato' },
+  { key: 'admin', label: 'Admin' },
+];
+
+function isBloccato(user) {
+  return user.isBanned || user.isBloccato;
+}
+
+function FilterChips({ options, selected, onSelect, activeColor }) {
+  return (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
+      {options.map((opt) => {
+        const active = selected === opt.key;
+        return (
+          <TouchableOpacity
+            key={opt.key}
+            style={[styles.chip, active && { backgroundColor: activeColor, borderColor: activeColor }]}
+            onPress={() => onSelect(opt.key)}
+          >
+            <Text style={[styles.chipText, active && styles.chipTextActive]}>{opt.label}</Text>
+          </TouchableOpacity>
+        );
+      })}
+    </ScrollView>
+  );
+}
+
 function UserItem({ user, onPress }) {
+  const bloccato = isBloccato(user);
   return (
     <TouchableOpacity style={styles.item} onPress={() => onPress(user)}>
       <View style={styles.avatar}>
@@ -47,7 +86,7 @@ function UserItem({ user, onPress }) {
               <Text style={styles.badgeText}>Verificato</Text>
             </View>
           )}
-          {user.isBanned && (
+          {bloccato && (
             <View style={[styles.badge, { backgroundColor: '#FF3B30' }]}>
               <Text style={styles.badgeText}>Bloccato</Text>
             </View>
@@ -64,6 +103,8 @@ export default function AdminUsersScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('tutti');
+  const [roleFilter, setRoleFilter] = useState('tutti');
 
   const loadUtenti = useCallback(async () => {
     try {
@@ -80,15 +121,21 @@ export default function AdminUsersScreen({ navigation }) {
   useEffect(() => { loadUtenti(); }, [loadUtenti]);
 
   const filtered = useMemo(() => {
-    if (!search.trim()) return utenti;
-    const q = search.toLowerCase();
-    return utenti.filter(
-      (u) =>
-        u.nome?.toLowerCase().includes(q) ||
-        u.cognome?.toLowerCase().includes(q) ||
-        u.email?.toLowerCase().includes(q)
-    );
-  }, [utenti, search]);
+    let result = utenti;
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      result = result.filter(
+        (u) =>
+          u.nome?.toLowerCase().includes(q) ||
+          u.cognome?.toLowerCase().includes(q) ||
+          u.email?.toLowerCase().includes(q)
+      );
+    }
+    if (statusFilter === 'verificati') result = result.filter((u) => u.isVerificato);
+    if (statusFilter === 'bloccati') result = result.filter((u) => isBloccato(u));
+    if (roleFilter !== 'tutti') result = result.filter((u) => u.ruolo === roleFilter);
+    return result;
+  }, [utenti, search, statusFilter, roleFilter]);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -121,6 +168,19 @@ export default function AdminUsersScreen({ navigation }) {
         )}
       </View>
 
+      <FilterChips
+        options={STATUS_FILTERS}
+        selected={statusFilter}
+        onSelect={setStatusFilter}
+        activeColor="#0047AB"
+      />
+      <FilterChips
+        options={ROLE_FILTERS}
+        selected={roleFilter}
+        onSelect={setRoleFilter}
+        activeColor="#FF9500"
+      />
+
       <Text style={styles.count}>{filtered.length} utent{filtered.length === 1 ? 'e' : 'i'}</Text>
 
       <FlatList
@@ -145,6 +205,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#FFF',
     margin: 16,
+    marginBottom: 8,
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 10,
@@ -155,6 +216,17 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
   },
   searchInput: { flex: 1, fontSize: 15, color: '#333' },
+  chipsRow: { paddingHorizontal: 16, paddingVertical: 8, gap: 8 },
+  chip: {
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: '#DDD',
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    backgroundColor: '#FFF',
+  },
+  chipText: { fontSize: 13, fontWeight: '600', color: '#666' },
+  chipTextActive: { color: '#FFF' },
   count: { paddingHorizontal: 16, marginBottom: 6, fontSize: 13, color: '#888', fontWeight: '600' },
   item: {
     flexDirection: 'row',

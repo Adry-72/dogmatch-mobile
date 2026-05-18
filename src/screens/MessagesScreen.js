@@ -2,7 +2,11 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
+  FlatList,
+  Image,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -10,10 +14,11 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Bubble, GiftedChat, Send } from 'react-native-gifted-chat';
 import { useSelector } from 'react-redux';
 import api from '../services/api';
 import socket from '../services/socket';
+
+const BASE_URL = process.env.EXPO_PUBLIC_SOCKET_URL || 'http://localhost:3000';
 
 const MOTIVI = [
   { key: 'comportamento_inappropriato', label: 'Comportamento inappropriato' },
@@ -23,18 +28,26 @@ const MOTIVI = [
   { key: 'altro',                       label: 'Altro' },
 ];
 
+const formatTime = (dateStr) => {
+  const d = new Date(dateStr);
+  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+};
+
 const MessagesScreen = ({ route, navigation }) => {
   const { interazioneId, destinatarioNome } = route.params || {};
 
   const user = useSelector((state) => state.auth.user);
 
   const [messages, setMessages] = useState([]);
+  const [inputText, setInputText] = useState('');
+  const [isSending, setIsSending] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [showSegnalaModal, setShowSegnalaModal] = useState(false);
   const [motivoSelezionato, setMotivoSelezionato] = useState(null);
   const [descrizione, setDescrizione] = useState('');
   const [segnalaLoading, setSegnalaLoading] = useState(false);
 
+  const flatListRef = useRef(null);
   const typingTimeoutRef = useRef(null);
 
   if (!interazioneId) {
@@ -47,23 +60,12 @@ const MessagesScreen = ({ route, navigation }) => {
     );
   }
 
-  const transformForGiftedChat = (msg) => ({
-    _id: msg.id,
-    text: msg.contenuto,
-    createdAt: new Date(msg.created_at || msg.createdAt),
-    user: {
-      _id: msg.mittenteUtenteId,
-      name: msg.mittente?.nome || 'Utente',
-      avatar: msg.mittente?.fotoUrl || null,
-    },
-  });
-
   useEffect(() => {
     socket.emit('join_chat', interazioneId);
 
     socket.on('nuovo_messaggio', (nuovoMessaggio) => {
       if (nuovoMessaggio.mittenteUtenteId !== user?.id) {
-        setMessages((prev) => GiftedChat.append(prev, [transformForGiftedChat(nuovoMessaggio)]));
+        setMessages((prev) => [nuovoMessaggio, ...prev]);
       }
     });
 
@@ -79,7 +81,32 @@ const MessagesScreen = ({ route, navigation }) => {
     };
   }, [interazioneId, user?.id]);
 
-  const handleTyping = (text) => {
+  useEffect(() => {
+    const fetchCronologia = async () => {
+      try {
+        const { data } = await api.get(`/messaggi/${interazioneId}`);
+        if (data.successo) {
+          // API returns oldest-first; reverse for inverted FlatList (newest first)
+          setMessages([...data.chat].reverse());
+        }
+      } catch {}
+    };
+    fetchCronologia();
+
+    if (destinatarioNome) {
+      navigation.setOptions({
+        title: destinatarioNome,
+        headerRight: () => (
+          <TouchableOpacity onPress={openSegnalaModal} style={{ marginRight: 16 }}>
+            <MaterialCommunityIcons name="flag-outline" size={24} color="#FF3B30" />
+          </TouchableOpacity>
+        ),
+      });
+    }
+  }, [interazioneId]);
+
+  const handleInputChange = (text) => {
+    setInputText(text);
     if (text.length > 0) {
       socket.emit('typing', { interazioneId, isTyping: true });
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
@@ -88,6 +115,32 @@ const MessagesScreen = ({ route, navigation }) => {
       }, 2000);
     }
   };
+
+  const handleSend = useCallback(async () => {
+    const text = inputText.trim();
+    if (!text || isSending) return;
+
+    const optimistic = {
+      id: `tmp-${Date.now()}`,
+      contenuto: text,
+      created_at: new Date().toISOString(),
+      mittenteUtenteId: user?.id,
+      mittente: { nome: user?.nome, fotoUrl: user?.fotoUrl },
+    };
+
+    setMessages((prev) => [optimistic, ...prev]);
+    setInputText('');
+    socket.emit('typing', { interazioneId, isTyping: false });
+    setIsSending(true);
+
+    try {
+      await api.post('/messaggi', { interazioneId, contenuto: text });
+    } catch {
+      // Keep the optimistic message even on failure for UX
+    } finally {
+      setIsSending(false);
+    }
+  }, [inputText, isSending, interazioneId, user]);
 
   const openSegnalaModal = () => {
     setMotivoSelezionato(null);
@@ -117,66 +170,35 @@ const MessagesScreen = ({ route, navigation }) => {
     }
   };
 
-  useEffect(() => {
-    const fetchCronologia = async () => {
-      try {
-        const { data } = await api.get(`/messaggi/${interazioneId}`);
-        if (data.successo) {
-          setMessages(data.chat.map(transformForGiftedChat));
-        }
-      } catch {}
-    };
-    fetchCronologia();
-    if (destinatarioNome) {
-      navigation.setOptions({
-        title: destinatarioNome,
-        headerRight: () => (
-          <TouchableOpacity onPress={openSegnalaModal} style={{ marginRight: 16 }}>
-            <MaterialCommunityIcons name="flag-outline" size={24} color="#FF3B30" />
-          </TouchableOpacity>
-        ),
-      });
-    }
-  }, [interazioneId]);
+  const renderMessage = ({ item }) => {
+    const isMe = item.mittenteUtenteId === user?.id;
+    const avatarUri = item.mittente?.fotoUrl
+      ? { uri: `${BASE_URL}/uploads/${item.mittente.fotoUrl}` }
+      : null;
 
-  const onSend = useCallback(async (newMessages = []) => {
-    const msg = newMessages[0];
-    setMessages((prev) => GiftedChat.append(prev, newMessages));
-    socket.emit('typing', { interazioneId, isTyping: false });
-    try {
-      await api.post('/messaggi', { interazioneId, contenuto: msg.text });
-    } catch {}
-  }, [interazioneId]);
-
-  const renderBubble = (props) => (
-    <Bubble
-      {...props}
-      wrapperStyle={{
-        right: { backgroundColor: '#0047AB', borderRadius: 20, marginBottom: 5 },
-        left: { backgroundColor: '#FFFFFF', borderRadius: 20, marginBottom: 5, borderWidth: 1.5, borderColor: '#0047AB' },
-      }}
-      textStyle={{
-        right: { color: '#FFF', fontSize: 15 },
-        left: { color: '#1A1A1A', fontSize: 15 },
-      }}
-    />
-  );
-
-  const renderSend = (props) => (
-    <Send {...props} containerStyle={styles.sendContainer}>
-      <MaterialCommunityIcons name="send-circle" size={44} color="#0047AB" />
-    </Send>
-  );
-
-  const renderFooter = () => {
-    if (isTyping) {
-      return (
-        <View style={styles.footerContainer}>
-          <Text style={styles.typingText}>{destinatarioNome} sta scrivendo... 🐾</Text>
+    return (
+      <View style={[styles.messageRow, isMe ? styles.rowRight : styles.rowLeft]}>
+        {!isMe && (
+          <View style={styles.avatarSmall}>
+            {avatarUri ? (
+              <Image source={avatarUri} style={styles.avatarSmallImg} />
+            ) : (
+              <MaterialCommunityIcons name="dog" size={20} color="#CCC" />
+            )}
+          </View>
+        )}
+        <View style={isMe ? styles.bubbleWrapRight : styles.bubbleWrapLeft}>
+          <View style={[styles.bubble, isMe ? styles.bubbleRight : styles.bubbleLeft]}>
+            <Text style={[styles.bubbleText, isMe && styles.bubbleTextRight]}>
+              {item.contenuto}
+            </Text>
+          </View>
+          <Text style={[styles.timestamp, isMe ? styles.timestampRight : styles.timestampLeft]}>
+            {formatTime(item.created_at || item.createdAt)}
+          </Text>
         </View>
-      );
-    }
-    return null;
+      </View>
+    );
   };
 
   return (
@@ -245,46 +267,119 @@ const MessagesScreen = ({ route, navigation }) => {
         </View>
       </Modal>
 
-      <GiftedChat
-        messages={messages}
-        onSend={onSend}
-        onInputTextChanged={handleTyping}
-        user={{
-          _id: user?.id || 1,
-          name: user?.nome,
-          avatar: user?.fotoUrl || null
-        }}
-        renderBubble={renderBubble}
-        renderSend={renderSend}
-        renderFooter={renderFooter}
-        showUserAvatar={true}
-        placeholder="Scrivi un messaggio..."
-        isTyping={isTyping}
-        scrollToBottom
-        listViewProps={{ showsVerticalScrollIndicator: false }}
-        textInputStyle={styles.textInput}
-      />
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+      >
+        <FlatList
+          ref={flatListRef}
+          data={messages}
+          renderItem={renderMessage}
+          keyExtractor={(item) => item.id?.toString() ?? item.created_at}
+          inverted
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        />
+
+        {isTyping && (
+          <View style={styles.typingRow}>
+            <Text style={styles.typingText}>{destinatarioNome} sta scrivendo... 🐾</Text>
+          </View>
+        )}
+
+        <View style={styles.inputRow}>
+          <TextInput
+            style={styles.input}
+            value={inputText}
+            onChangeText={handleInputChange}
+            placeholder="Scrivi un messaggio..."
+            placeholderTextColor="#BBB"
+            multiline={false}
+            returnKeyType="send"
+            onSubmitEditing={handleSend}
+            maxLength={1000}
+          />
+          <TouchableOpacity
+            style={[styles.sendBtn, (!inputText.trim() || isSending) && styles.sendBtnDisabled]}
+            onPress={handleSend}
+            disabled={!inputText.trim() || isSending}
+          >
+            <MaterialCommunityIcons name="send-circle" size={44} color={inputText.trim() && !isSending ? '#0047AB' : '#B0C4DE'} />
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FFF7F2' },
-  sendContainer: { justifyContent: 'center', alignItems: 'center', marginRight: 8, height: '100%' },
-  textInput: {
-    backgroundColor: '#FFF', borderRadius: 20, borderWidth: 1, borderColor: '#E8E8E8',
-    paddingHorizontal: 15, marginTop: 8, marginBottom: 5, marginLeft: 10, fontSize: 16
+  flex: { flex: 1 },
+  listContent: { paddingHorizontal: 12, paddingVertical: 8 },
+  messageRow: { flexDirection: 'row', marginVertical: 3, alignItems: 'flex-end' },
+  rowLeft: { justifyContent: 'flex-start' },
+  rowRight: { justifyContent: 'flex-end' },
+  avatarSmall: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#EEE',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
   },
-  footerContainer: {
-    marginTop: 5,
-    marginLeft: 15,
-    marginBottom: 10,
+  avatarSmallImg: { width: 32, height: 32, borderRadius: 16 },
+  bubbleWrapLeft: { maxWidth: '75%', alignItems: 'flex-start' },
+  bubbleWrapRight: { maxWidth: '75%', alignItems: 'flex-end' },
+  bubble: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 20,
   },
-  typingText: {
-    fontSize: 12,
-    color: '#0047AB',
-    fontStyle: 'italic',
+  bubbleLeft: {
+    backgroundColor: '#FFFFFF',
+    borderBottomLeftRadius: 4,
+    borderWidth: 1.5,
+    borderColor: '#0047AB',
   },
+  bubbleRight: {
+    backgroundColor: '#0047AB',
+    borderBottomRightRadius: 4,
+  },
+  bubbleText: { fontSize: 15, color: '#1A1A1A', lineHeight: 21 },
+  bubbleTextRight: { color: '#FFF' },
+  timestamp: { fontSize: 10, color: '#AAA', marginTop: 2 },
+  timestampLeft: { marginLeft: 4 },
+  timestampRight: { marginRight: 4 },
+  typingRow: { paddingHorizontal: 16, paddingBottom: 6 },
+  typingText: { fontSize: 12, color: '#0047AB', fontStyle: 'italic' },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#EEE',
+    backgroundColor: '#FFF',
+  },
+  input: {
+    flex: 1,
+    backgroundColor: '#FFF',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#E8E8E8',
+    paddingHorizontal: 15,
+    paddingVertical: Platform.OS === 'ios' ? 10 : 8,
+    marginLeft: 10,
+    fontSize: 16,
+    color: '#1A1A1A',
+    marginRight: 4,
+  },
+  sendBtn: { justifyContent: 'center', alignItems: 'center' },
+  sendBtnDisabled: { opacity: 0.4 },
+  // Modal styles
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.45)',

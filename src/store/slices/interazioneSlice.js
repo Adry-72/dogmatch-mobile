@@ -3,9 +3,11 @@ import api from '../../services/api';
 
 export const fetchDiscovery = createAsyncThunk(
     'interazioni/fetchDiscovery',
-    async ({ caneId, intento }, { rejectWithValue }) => {
+    async ({ caneId, intento, distanza }, { rejectWithValue }) => {
         try {
-            const response = await api.get(`/interazioni/discovery/${caneId}?intento=${intento}`);
+            const params = new URLSearchParams({ intento });
+            if (distanza) params.append('distanza', distanza);
+            const response = await api.get(`/interazioni/discovery/${caneId}?${params.toString()}`);
             return response.data.cani;
         } catch (err) {
             return rejectWithValue(err.response?.data || "Errore caricamento cani");
@@ -22,7 +24,11 @@ export const swipeLike = createAsyncThunk(
                 destinatarioCaneId,
                 intento
             });
-            return { destinatarioCaneId, isMatch: response.data.isMatch };
+            return {
+                destinatarioCaneId,
+                isMatch: response.data.isMatch,
+                matchDettagli: response.data.matchDettagli ?? null,
+            };
         } catch (err) {
             return rejectWithValue(err.response?.data || "Errore invio like");
         }
@@ -84,7 +90,7 @@ const interazioneSlice = createSlice({
             .addCase(swipeLike.fulfilled, (state, action) => {
                 state.discoveryStack = state.discoveryStack.filter(c => c.id !== action.payload.destinatarioCaneId);
                 if (action.payload.isMatch) {
-                    state.lastMatch = action.payload.isMatch;
+                    state.lastMatch = action.payload.matchDettagli;
                 }
             })
             .addCase(swipeLike.rejected, (state, action) => {

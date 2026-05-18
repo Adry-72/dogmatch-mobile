@@ -1,18 +1,21 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import { NavigationContainer } from "@react-navigation/native";
+import { NavigationContainer, useNavigationContainerRef } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { ActivityIndicator, Image, Platform, View } from 'react-native';
-import { useSelector } from "react-redux";
+import { ActivityIndicator, Image, Platform, Text, View } from 'react-native';
+import { useDispatch, useSelector } from "react-redux";
 
 import { HapticTab } from "../../components/haptic-tab";
 import AdminDashboardScreen from "../screens/AdminDashboardScreen";
+import AdminStatsScreen from "../screens/AdminStatsScreen";
+import AdminDogDetailScreen from "../screens/AdminDogDetailScreen";
 import AdminDogsScreen from "../screens/AdminDogsScreen";
 import AdminReportsScreen from "../screens/AdminReportsScreen";
 import AdminUserDetailScreen from "../screens/AdminUserDetailScreen";
 import AdminUsersScreen from "../screens/AdminUsersScreen";
 import EditProfileScreen from "../screens/EditProfileScreen";
 import ForgotPasswordScreen from "../screens/ForgotPasswordScreen";
+import RichiesteRicevuteScreen from "../screens/RichiesteRicevuteScreen";
 import HomeScreen from "../screens/HomeScreen";
 import LoginScreen from "../screens/LoginScreen";
 import MessagesScreen from "../screens/MessagesScreen";
@@ -20,6 +23,9 @@ import ChatListScreen from "../screens/ChatListScreen";
 import ProfileScreen from "../screens/ProfileScreen";
 import RegisterScreen from "../screens/RegisterScreen";
 import SnoutChatScreen from '../screens/SnoutChatScreen';
+import NotificheScreen from '../screens/NotificheScreen';
+import { selectNonLette } from '../store/slices/notificheSlice';
+import { usePushNotifications } from '../hooks/usePushNotifications';
 
 import AppLogo from "../../assets/images/logotrasparente.png";
 
@@ -51,9 +57,21 @@ function ChatNavigator() {
 
 function ProfileNavigator() {
   return (
-    <ProfileStack.Navigator screenOptions={{ headerShown: false, headerShadowVisible: false }}>
-      <ProfileStack.Screen name="ProfileMain" component={ProfileScreen} />
-      <ProfileStack.Screen name="EditProfile" component={EditProfileScreen} />
+    <ProfileStack.Navigator
+      screenOptions={{
+        headerShadowVisible: false,
+        headerStyle: { backgroundColor: '#FFF7F2' },
+        headerTintColor: '#0047AB',
+        headerTitleStyle: { fontWeight: '900' },
+      }}
+    >
+      <ProfileStack.Screen name="ProfileMain" component={ProfileScreen} options={{ headerShown: false }} />
+      <ProfileStack.Screen name="EditProfile" component={EditProfileScreen} options={{ headerShown: false }} />
+      <ProfileStack.Screen
+        name="RichiesteRicevute"
+        component={RichiesteRicevuteScreen}
+        options={{ title: 'Richieste di Match' }}
+      />
     </ProfileStack.Navigator>
   );
 }
@@ -69,9 +87,11 @@ function AdminNavigator() {
       }}
     >
       <AdminStack.Screen name="AdminDashboard" component={AdminDashboardScreen} options={{ headerShown: false }} />
+      <AdminStack.Screen name="AdminStats" component={AdminStatsScreen} options={{ title: 'Statistiche & Monitoring' }} />
       <AdminStack.Screen name="AdminUsers" component={AdminUsersScreen} options={{ title: 'Utenti' }} />
       <AdminStack.Screen name="AdminUserDetail" component={AdminUserDetailScreen} options={{ title: 'Dettaglio Utente' }} />
       <AdminStack.Screen name="AdminDogs" component={AdminDogsScreen} options={{ title: 'Cani' }} />
+      <AdminStack.Screen name="AdminDogDetail" component={AdminDogDetailScreen} options={{ title: 'Dettaglio Cane' }} />
       <AdminStack.Screen name="AdminReports" component={AdminReportsScreen} options={{ title: 'Segnalazioni' }} />
     </AdminStack.Navigator>
   );
@@ -80,6 +100,7 @@ function AdminNavigator() {
 function MainTabs() {
   const user = useSelector((state) => state.auth.user);
   const isAdmin = user?.ruolo === 'admin';
+  const nonLette = useSelector(selectNonLette);
 
   return (
     <Tab.Navigator
@@ -115,13 +136,31 @@ function MainTabs() {
           let iconName;
           if (route.name === "Home") iconName = "dog";
           else if (route.name === "Messaggi") iconName = "message-text";
+          else if (route.name === "Notifiche") iconName = "bell";
           else if (route.name === "Profilo") iconName = "account";
           else if (route.name === "Admin") iconName = "shield-account";
-          return <MaterialCommunityIcons name={iconName} size={size + 4} color={color} />;
+          return (
+            <View>
+              <MaterialCommunityIcons name={iconName} size={size + 4} color={color} />
+              {route.name === "Notifiche" && nonLette > 0 && (
+                <View style={{
+                  position: 'absolute', top: -4, right: -8,
+                  backgroundColor: '#E91E63', borderRadius: 9,
+                  minWidth: 18, height: 18, justifyContent: 'center', alignItems: 'center',
+                  paddingHorizontal: 3,
+                }}>
+                  <Text style={{ color: '#FFF', fontSize: 10, fontWeight: '900' }}>
+                    {nonLette > 99 ? '99+' : nonLette}
+                  </Text>
+                </View>
+              )}
+            </View>
+          );
         },
       })}
     >
       <Tab.Screen name="Home" component={HomeScreen} />
+      <Tab.Screen name="Notifiche" component={NotificheScreen} options={{ title: 'Notifiche' }} />
       <Tab.Screen
         name="Messaggi"
         component={ChatNavigator}
@@ -154,12 +193,13 @@ function AuthenticatedStack() {
         name="SnoutChat"
         component={SnoutChatScreen}
         options={{
-          title: 'SnoutBot AI',
           headerBackTitle: 'Indietro',
           headerShadowVisible: false,
           headerStyle: { backgroundColor: '#FFF7F2' },
           headerTintColor: '#0047AB',
-          headerTitleStyle: { fontWeight: '900' }
+          headerTitle: () => (
+            <Image source={AppLogo} style={{ width: 160, height: 48 }} resizeMode="contain" />
+          ),
         }}
       />
     </AppStack.Navigator>
@@ -168,6 +208,8 @@ function AuthenticatedStack() {
 
 export default function AppNavigator() {
   const { isAuthenticated, loading } = useSelector((state) => state.auth);
+  const navigationRef = useNavigationContainerRef();
+  usePushNotifications(navigationRef);
 
   if (loading && !isAuthenticated) {
     return (
@@ -178,7 +220,7 @@ export default function AppNavigator() {
   }
 
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef}>
       {isAuthenticated ? <AuthenticatedStack /> : <AuthStack />}
     </NavigationContainer>
   );

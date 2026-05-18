@@ -21,6 +21,8 @@ const ROLE_LABEL = {
   admin: 'Admin',
 };
 
+const RUOLI = ['privato', 'allevatore', 'appassionato', 'admin'];
+
 function InfoRow({ icon, label, value }) {
   return (
     <View style={styles.infoRow}>
@@ -93,19 +95,20 @@ export default function AdminUserDetailScreen({ route, navigation }) {
       Alert.alert('Operazione negata', 'Non puoi bloccare un altro amministratore.');
       return;
     }
+    const bloccato = utente.isBanned || utente.isBloccato;
     Alert.alert(
-      utente.isBanned ? 'Sblocca utente' : 'Blocca utente',
-      `Sei sicuro di voler ${utente.isBanned ? 'sbloccare' : 'bloccare'} ${utente.nome}?`,
+      bloccato ? 'Sblocca utente' : 'Blocca utente',
+      `Sei sicuro di voler ${bloccato ? 'sbloccare' : 'bloccare'} ${utente.nome}?`,
       [
         { text: 'Annulla', style: 'cancel' },
         {
-          text: utente.isBanned ? 'Sblocca' : 'Blocca',
-          style: utente.isBanned ? 'default' : 'destructive',
+          text: bloccato ? 'Sblocca' : 'Blocca',
+          style: bloccato ? 'default' : 'destructive',
           onPress: async () => {
             setActionLoading(true);
             try {
               const res = await adminApi.toggleBlocco(utente.id);
-              setUtente((u) => ({ ...u, isBanned: res.data.isBloccato }));
+              setUtente((u) => ({ ...u, isBanned: res.data.isBloccato, isBloccato: res.data.isBloccato }));
             } catch {
               Alert.alert('Errore', 'Operazione non riuscita.');
             } finally {
@@ -113,6 +116,34 @@ export default function AdminUserDetailScreen({ route, navigation }) {
             }
           },
         },
+      ]
+    );
+  };
+
+  const handleCambiaRuolo = () => {
+    if (utente.ruolo === 'admin') {
+      Alert.alert('Operazione negata', 'Non puoi cambiare il ruolo di un amministratore.');
+      return;
+    }
+    Alert.alert(
+      'Cambia Ruolo',
+      `Ruolo attuale: ${ROLE_LABEL[utente.ruolo]}\nScegli il nuovo ruolo:`,
+      [
+        ...RUOLI.filter((r) => r !== utente.ruolo && r !== 'admin').map((r) => ({
+          text: ROLE_LABEL[r],
+          onPress: async () => {
+            setActionLoading(true);
+            try {
+              await adminApi.cambiaRuolo(utente.id, r);
+              setUtente((u) => ({ ...u, ruolo: r }));
+            } catch {
+              Alert.alert('Errore', 'Impossibile cambiare il ruolo.');
+            } finally {
+              setActionLoading(false);
+            }
+          },
+        })),
+        { text: 'Annulla', style: 'cancel' },
       ]
     );
   };
@@ -218,6 +249,19 @@ export default function AdminUserDetailScreen({ route, navigation }) {
           {utente.isVerificato ? 'Rimuovi Verifica' : 'Verifica Utente'}
         </Text>
       </TouchableOpacity>
+
+      {utente.ruolo !== 'admin' && (
+        <TouchableOpacity
+          style={[styles.actionBtn, { borderColor: '#8B5CF6' }]}
+          onPress={handleCambiaRuolo}
+          disabled={actionLoading}
+        >
+          <MaterialCommunityIcons name="account-convert-outline" size={20} color="#8B5CF6" />
+          <Text style={[styles.actionBtnText, { color: '#8B5CF6' }]}>
+            Cambia Ruolo ({ROLE_LABEL[utente.ruolo]})
+          </Text>
+        </TouchableOpacity>
+      )}
 
       <TouchableOpacity
         style={[styles.actionBtn, { borderColor: isBloccato ? '#FF9500' : '#FF3B30' }]}

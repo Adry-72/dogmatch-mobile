@@ -46,13 +46,13 @@ function PedigreeBadge({ status }) {
   );
 }
 
-function DogItem({ dog, onToggleFlag, onDelete, onVerifyPedigree, onViewPedigree }) {
+function DogItem({ dog, onPress, onToggleFlag, onDelete, onVerifyPedigree, onViewPedigree }) {
   const fotoUri = dog.fotoUrl ? `${BASE_URL}/uploads/${dog.fotoUrl}` : null;
   const proprietario = dog.proprietario;
   const pedStatus = pedigreeStatus(dog);
 
   return (
-    <View style={styles.item}>
+    <TouchableOpacity style={styles.item} onPress={() => onPress(dog)} activeOpacity={0.85}>
       {/* Riga superiore: foto + info */}
       <View style={styles.itemTop}>
         {fotoUri ? (
@@ -127,11 +127,11 @@ function DogItem({ dog, onToggleFlag, onDelete, onVerifyPedigree, onViewPedigree
           <Text style={[styles.iconBtnLabel, { color: '#FF3B30' }]}>Elimina</Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 }
 
-export default function AdminDogsScreen() {
+export default function AdminDogsScreen({ navigation }) {
   const [cani, setCani] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -333,6 +333,7 @@ export default function AdminDogsScreen() {
         renderItem={({ item }) => (
           <DogItem
             dog={item}
+            onPress={(d) => navigation.navigate('AdminDogDetail', { dogId: d.id })}
             onToggleFlag={handleToggleFlag}
             onDelete={handleDelete}
             onVerifyPedigree={handleVerifyPedigree}

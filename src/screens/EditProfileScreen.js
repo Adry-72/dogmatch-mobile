@@ -26,6 +26,8 @@ const EditProfileScreen = ({ navigation }) => {
     const [telefono, setTelefono] = useState("");
     const [ruolo, setRuolo] = useState("privato");
     const [bio, setBio] = useState("");
+    const [provincia, setProvincia] = useState("");
+    const [regione, setRegione] = useState("");
     const [posizione, setPosizione] = useState(null);
     const [userImage, setUserImage] = useState(null);
     const [localizing, setLocalizing] = useState(false);
@@ -51,6 +53,8 @@ const EditProfileScreen = ({ navigation }) => {
         setTelefono(user.telefono || "");
         setRuolo(user.ruolo || "privato");
         setBio(user.bio || "");
+        setProvincia(user.provincia || "");
+        setRegione(user.regione || "");
         if (user.posizione) {
             try {
                 setPosizione(typeof user.posizione === 'string' ? JSON.parse(user.posizione) : user.posizione);
@@ -93,7 +97,10 @@ const EditProfileScreen = ({ navigation }) => {
             }
             const loc = await Location.getCurrentPositionAsync({});
             const rev = await Location.reverseGeocodeAsync(loc.coords);
-            setPosizione({ lat: loc.coords.latitude, lng: loc.coords.longitude, citta: rev[0]?.city || "Sconosciuta" });
+            const geo = rev[0];
+            setPosizione({ lat: loc.coords.latitude, lng: loc.coords.longitude, citta: geo?.city || 'Sconosciuta' });
+            if (geo?.subregion) setProvincia(geo.subregion);
+            if (geo?.region) setRegione(geo.region);
         } catch {
             Alert.alert("Errore", "Impossibile rilevare la posizione.");
         } finally {
@@ -127,6 +134,8 @@ const EditProfileScreen = ({ navigation }) => {
         formData.append('telefono', telefono);
         formData.append('ruolo', ruolo);
         formData.append('bio', bio);
+        formData.append('provincia', provincia);
+        formData.append('regione', regione);
         formData.append('posizione', JSON.stringify(posizione));
         formData.append('caneNome', caneNome);
         formData.append('caneRazza', caneRazza);
@@ -188,6 +197,11 @@ const EditProfileScreen = ({ navigation }) => {
 
                 <Text style={styles.label}>BIO</Text>
                 <TextInput style={[styles.input, styles.textArea]} value={bio} onChangeText={setBio} multiline placeholder="Parlaci di te..." />
+
+                <View style={styles.row}>
+                    <CustomInput label="PROVINCIA" value={provincia} onChangeText={setProvincia} placeholder="Es. Milano" style={{ flex: 1, marginRight: 10 }} />
+                    <CustomInput label="REGIONE" value={regione} onChangeText={setRegione} placeholder="Es. Lombardia" style={{ flex: 1 }} />
+                </View>
 
                 <TouchableOpacity style={styles.locBtn} onPress={handleGetLocation}>
                     <Text style={styles.locBtnText}>

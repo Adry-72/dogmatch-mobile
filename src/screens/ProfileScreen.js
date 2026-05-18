@@ -76,6 +76,12 @@ export default function ProfileScreen({ navigation }) {
         <Text style={styles.editButtonText}>Modifica Profilo e Cane</Text>
       </TouchableOpacity>
 
+      <TouchableOpacity style={styles.richiesteButton} onPress={() => navigation.navigate('RichiesteRicevute')}>
+        <MaterialCommunityIcons name="heart-arrow" size={20} color="#EFA6BA" />
+        <Text style={styles.richiesteButtonText}>Richieste di Match</Text>
+        <MaterialCommunityIcons name="chevron-right" size={20} color="#EFA6BA" />
+      </TouchableOpacity>
+
       <TouchableOpacity style={styles.logoutButton} onPress={() => dispatch(logout())}>
         <MaterialCommunityIcons name="logout" size={18} color="red" style={{ marginRight: 5 }} />
         <Text style={styles.logoutText}>Esci dall'account</Text>
@@ -175,7 +181,28 @@ const styles = StyleSheet.create({
     color: "#0047AB",
     fontWeight: "800",
     fontSize: 16,
-    marginLeft: 10
+    marginLeft: 10,
+    flex: 1,
+  },
+  richiesteButton: {
+    flexDirection: "row",
+    backgroundColor: "#FFF",
+    paddingVertical: 15,
+    paddingHorizontal: 25,
+    borderRadius: 20,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#EFA6BA",
+    width: "100%",
+    justifyContent: "space-between",
+    marginBottom: 10,
+  },
+  richiesteButtonText: {
+    color: "#EFA6BA",
+    fontWeight: "800",
+    fontSize: 16,
+    marginLeft: 10,
+    flex: 1,
   },
   logoutButton: {
     marginTop: 10,

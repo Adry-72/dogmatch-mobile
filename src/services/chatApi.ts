@@ -1,7 +1,7 @@
 import api from './api';
 
-export const fetchChatResponse = async (userMessage: string): Promise<string> => {
-    const response = await api.post('/chat/bot', { message: userMessage });
+export const fetchChatResponse = async (userMessage: string, screen?: string): Promise<string> => {
+    const response = await api.post('/chat/bot', { message: userMessage, screen: screen ?? 'SnoutChat (schermata dedicata)' });
     return response.data?.data?.text ?? '';
 };
 

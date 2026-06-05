@@ -302,11 +302,7 @@ export default function AdminDogsScreen({ navigation }) {
       </View>
 
       {/* Filtri */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.filtersRow}
-      >
+      <View style={styles.filtersGrid}>
         {FILTERS.map((f) => (
           <TouchableOpacity
             key={f.key}
@@ -325,7 +321,7 @@ export default function AdminDogsScreen({ navigation }) {
             )}
           </TouchableOpacity>
         ))}
-      </ScrollView>
+      </View>
 
       <FlatList
         data={filtered}
@@ -373,24 +369,32 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
   },
   searchInput: { flex: 1, fontSize: 15, color: '#333' },
-  filtersRow: { paddingHorizontal: 16, paddingVertical: 8, gap: 8 },
+  filtersGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    gap: 8,
+  },
   filterChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 20,
+    justifyContent: 'center',
+    borderRadius: 14,
     borderWidth: 1.5,
     borderColor: '#DDD',
     paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingVertical: 14,
     backgroundColor: '#FFF',
-    gap: 6,
+    gap: 8,
+    width: '48%',
   },
   filterChipActive: { borderColor: '#0047AB', backgroundColor: '#EEF3FF' },
-  filterChipText: { fontSize: 13, color: '#888', fontWeight: '600' },
+  filterChipText: { fontSize: 16, color: '#1A1A1A', fontWeight: '700' },
   filterChipTextActive: { color: '#0047AB' },
-  filterBadge: { backgroundColor: '#EEE', borderRadius: 10, paddingHorizontal: 6, paddingVertical: 1 },
+  filterBadge: { backgroundColor: '#E0E0E0', borderRadius: 10, paddingHorizontal: 7, paddingVertical: 2 },
   filterBadgeActive: { backgroundColor: '#C5D5FF' },
-  filterBadgeText: { fontSize: 11, fontWeight: '700', color: '#888' },
+  filterBadgeText: { fontSize: 13, fontWeight: '700', color: '#333' },
   item: {
     backgroundColor: '#FFF',
     marginHorizontal: 16,
@@ -449,6 +453,6 @@ const styles = StyleSheet.create({
     borderTopColor: '#F0E8E0',
   },
   iconBtn: { alignItems: 'center', gap: 2 },
-  iconBtnLabel: { fontSize: 10, fontWeight: '600' },
+  iconBtnLabel: { fontSize: 12, fontWeight: '600' },
   empty: { textAlign: 'center', color: '#AAA', marginTop: 40, paddingHorizontal: 30 },
 });

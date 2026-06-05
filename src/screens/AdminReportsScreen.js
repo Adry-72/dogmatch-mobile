@@ -6,7 +6,6 @@ import {
   FlatList,
   Modal,
   RefreshControl,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -355,7 +354,8 @@ export default function AdminReportsScreen({ navigation }) {
   return (
     <View style={styles.container}>
       {/* Filtro stato */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filtersRow}>
+      <Text style={styles.filterLabel}>Stato</Text>
+      <View style={styles.filtersGrid}>
         {FILTRI_STATO.map((f) => {
           const isActive = filtroStato === f.key;
           const count = countsByStato[f.key] ?? countsByStato['null'];
@@ -374,10 +374,11 @@ export default function AdminReportsScreen({ navigation }) {
             </TouchableOpacity>
           );
         })}
-      </ScrollView>
+      </View>
 
       {/* Filtro motivo */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.filtersRow, { paddingTop: 0 }]}>
+      <Text style={styles.filterLabel}>Motivo</Text>
+      <View style={styles.filtersGrid}>
         {FILTRI_MOTIVO.map((f) => {
           const isActive = filtroMotivo === f.key;
           return (
@@ -390,7 +391,7 @@ export default function AdminReportsScreen({ navigation }) {
             </TouchableOpacity>
           );
         })}
-      </ScrollView>
+      </View>
 
       <FlatList
         data={displayed}
@@ -428,24 +429,33 @@ export default function AdminReportsScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FFF7F2' },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFF7F2' },
-  filtersRow: { paddingHorizontal: 16, paddingVertical: 10, gap: 8 },
+  filterLabel: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 2, fontSize: 12, fontWeight: '700', color: '#AAA', textTransform: 'uppercase', letterSpacing: 0.8 },
+  filtersGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    gap: 8,
+  },
   chip: {
+    width: '48%',
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 20,
+    justifyContent: 'center',
+    borderRadius: 14,
     borderWidth: 1.5,
     borderColor: '#DDD',
     paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingVertical: 14,
     backgroundColor: '#FFF',
     gap: 6,
   },
   chipActive: { borderColor: '#0047AB', backgroundColor: '#EEF3FF' },
-  chipText: { fontSize: 13, color: '#888', fontWeight: '600' },
+  chipText: { fontSize: 15, color: '#1A1A1A', fontWeight: '700', textAlign: 'center' },
   chipTextActive: { color: '#0047AB' },
-  chipBadge: { backgroundColor: '#EEE', borderRadius: 10, paddingHorizontal: 6, paddingVertical: 1 },
+  chipBadge: { backgroundColor: '#E0E0E0', borderRadius: 10, paddingHorizontal: 6, paddingVertical: 2 },
   chipBadgeActive: { backgroundColor: '#C5D5FF' },
-  chipBadgeText: { fontSize: 11, fontWeight: '700', color: '#888' },
+  chipBadgeText: { fontSize: 12, fontWeight: '700', color: '#333' },
   card: {
     backgroundColor: '#FFF',
     marginHorizontal: 16,

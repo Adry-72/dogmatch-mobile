@@ -5,7 +5,6 @@ import {
   Alert,
   FlatList,
   RefreshControl,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -48,7 +47,7 @@ function isBloccato(user) {
 
 function FilterChips({ options, selected, onSelect, activeColor }) {
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
+    <View style={styles.chipsGrid}>
       {options.map((opt) => {
         const active = selected === opt.key;
         return (
@@ -61,7 +60,7 @@ function FilterChips({ options, selected, onSelect, activeColor }) {
           </TouchableOpacity>
         );
       })}
-    </ScrollView>
+    </View>
   );
 }
 
@@ -168,12 +167,14 @@ export default function AdminUsersScreen({ navigation }) {
         )}
       </View>
 
+      <Text style={styles.filterLabel}>Stato</Text>
       <FilterChips
         options={STATUS_FILTERS}
         selected={statusFilter}
         onSelect={setStatusFilter}
         activeColor="#0047AB"
       />
+      <Text style={styles.filterLabel}>Ruolo</Text>
       <FilterChips
         options={ROLE_FILTERS}
         selected={roleFilter}
@@ -216,17 +217,27 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
   },
   searchInput: { flex: 1, fontSize: 15, color: '#333' },
-  chipsRow: { paddingHorizontal: 16, paddingVertical: 8, gap: 8 },
+  chipsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    gap: 8,
+  },
   chip: {
-    borderRadius: 20,
+    width: '48%',
+    borderRadius: 14,
     borderWidth: 1.5,
     borderColor: '#DDD',
-    paddingHorizontal: 14,
-    paddingVertical: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 14,
     backgroundColor: '#FFF',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  chipText: { fontSize: 13, fontWeight: '600', color: '#666' },
+  chipText: { fontSize: 15, fontWeight: '700', color: '#1A1A1A', textAlign: 'center' },
   chipTextActive: { color: '#FFF' },
+  filterLabel: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 2, fontSize: 12, fontWeight: '700', color: '#AAA', textTransform: 'uppercase', letterSpacing: 0.8 },
   count: { paddingHorizontal: 16, marginBottom: 6, fontSize: 13, color: '#888', fontWeight: '600' },
   item: {
     flexDirection: 'row',
